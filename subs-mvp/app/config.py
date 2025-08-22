@@ -1,17 +1,18 @@
-from pydantic import BaseSettings, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 class Settings(BaseSettings):
-    DB_DSN: str = Field(..., env="DB_DSN")
+    # читаем переменные окружения как есть (без префикса), регистр не важен
+    model_config = SettingsConfigDict(env_prefix="", case_sensitive=False)
 
-    WATCH_NAMESPACE: str = Field("securelink", env="WATCH_NAMESPACE")
-    WATCH_LABEL_SELECTOR: str = Field("app=xray,component=clients", env="WATCH_LABEL_SELECTOR")
-    POOL_LABEL_KEY: str = Field("pool", env="POOL_LABEL_KEY")
-    CM_CLIENTS_KEY: str = Field("clients.json", env="CM_CLIENTS_KEY")
+    DB_DSN: str = Field(...)
 
-    INTERNAL_TOKEN: str = Field(..., env="SUBS_INTERNAL_TOKEN")
-    RESCAN_INTERVAL_SEC: int = Field(600, env="RESCAN_INTERVAL_SEC")
+    WATCH_NAMESPACE: str = Field("securelink")
+    WATCH_LABEL_SELECTOR: str = Field("app=xray,component=clients")
+    POOL_LABEL_KEY: str = Field("pool")
+    CM_CLIENTS_KEY: str = Field("clients.json")
 
-    class Config:
-        case_sensitive = False
+    INTERNAL_TOKEN: str = Field(..., alias="SUBS_INTERNAL_TOKEN")
+    RESCAN_INTERVAL_SEC: int = Field(600)
 
 settings = Settings()

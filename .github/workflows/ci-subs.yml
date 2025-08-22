@@ -1,0 +1,86 @@
+name: CI (subs)
+
+on:
+  pull_request:
+    paths:
+      - 'subs-mvp/**'
+      - 'subs-mvp-*.zip'
+      - '.github/workflows/ci-subs.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare source dir
+        run: |
+          if [ -d subs-mvp ]; then
+            echo "subs-mvp dir exists"
+          else
+            unzip -o subs-mvp-*.zip -d .
+            [ -d subs-mvp ] || { echo "subs-mvp dir not found"; exit 1; }
+          fi
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        working-directory: subs-mvp
+        run: |
+          python -m pip install -U pip
+          pip install -r requirements.txt
+
+      - name: Smoke import (no server start)
+        working-directory: subs-mvp
+        env:
+          DB_DSN: postgresql://u:p@localhost:5432/db
+          SUBS_INTERNAL_TOKEN: dummy
+        run: |
+          python - <<'PY'
+          import os
+          os.environ.setdefault("DB_DSN","postgresql://u:p@localhost:5432/db")
+          os.environ.setdefault("SUBS_INTERNAL_TOKEN","dummy")
+          from app.main import app
+          print("APP:", app.title, app.version)
+          PY
+
+      - name: Byte-compile check
+        working-directory: subs-mvp
+        run: python -m compileall -q app
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare source dir
+        run: |
+          if [ -d subs-mvp ]; then
+            echo "subs-mvp dir exists"
+          else
+            unzip -o subs-mvp-*.zip -d .
+          fi
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Normalize repository owner
+        run: echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./subs-mvp
+          push: true
+          tags: |
+            ghcr.io/${{ env.OWNER }}/subs:latest
+            ghcr.io/${{ env.OWNER }}/subs:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
