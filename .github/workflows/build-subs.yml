@@ -38,14 +38,17 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Normalize repository owner
+        run: echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: ./subs-mvp
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/subs:latest
-            ghcr.io/${{ github.repository_owner }}/subs:${{ github.sha }}
-            ghcr.io/${{ github.repository_owner }}/subs:${{ github.run_id }}
+            ghcr.io/${{ env.OWNER }}/subs:latest
+            ghcr.io/${{ env.OWNER }}/subs:${{ github.sha }}
+            ghcr.io/${{ env.OWNER }}/subs:${{ github.run_id }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
