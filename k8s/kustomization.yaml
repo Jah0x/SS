@@ -1,0 +1,10 @@
+namespace: securelink
+resources:
+  - subs-migrate.yaml
+configMapGenerator:
+  - name: subs-migrations
+    files:
+      - ../subs-mvp/migrations/20250823_schema.sql
+      - ../subs-mvp/migrations/20250823_functions.sql
+generatorOptions:
+  disableNameSuffixHash: true

@@ -1,37 +1,22 @@
-import asyncio
-from typing import Iterable, Tuple, Optional
+from typing import Iterable, Tuple
 from uuid import UUID
-import psycopg
 from psycopg_pool import AsyncConnectionPool
 
 from .config import settings
 
-_pool: Optional[AsyncConnectionPool] = None
-
-async def init_db_pool() -> AsyncConnectionPool:
-    global _pool
-    if _pool is None:
-        _pool = AsyncConnectionPool(
-            conninfo=settings.DB_DSN,
-            min_size=1,
-            max_size=10,
-            num_workers=3,
-            timeout=30,
-        )
-    return _pool
-
-async def close_db_pool():
-    global _pool
-    if _pool is not None:
-        await _pool.close()
-        _pool = None
+# Пул соединений открывается вручную в событии старта приложения
+pool = AsyncConnectionPool(
+    conninfo=settings.DB_DSN,
+    min_size=1,
+    max_size=10,
+    open=False,
+)
 
 async def upsert_uids_from_cm(cm_name: str, pool_id: str, uids: Iterable[UUID]) -> Tuple[int, int]:
     """Insert new UIDs as 'free' and update uid_sources for all.
 
     Returns (inserted_new, total_seen).
     """
-    pool = await init_db_pool()
     ulist = list({str(u) for u in uids})
     if not ulist:
         return 0, 0
@@ -71,7 +56,6 @@ async def upsert_uids_from_cm(cm_name: str, pool_id: str, uids: Iterable[UUID]) 
     return inserted, len(ulist)
 
 async def assign_uid_by_login(login: str) -> str:
-    pool = await init_db_pool()
     async with pool.connection() as conn:
         async with conn.transaction():
             cur = await conn.execute(
@@ -83,7 +67,6 @@ async def assign_uid_by_login(login: str) -> str:
             return str(row[0])
 
 async def revoke_by_login(login: str) -> None:
-    pool = await init_db_pool()
     async with pool.connection() as conn:
         async with conn.transaction():
             await conn.execute(
@@ -91,7 +74,6 @@ async def revoke_by_login(login: str) -> None:
             )
 
 async def uid_status(uid: UUID) -> tuple[str, str]:
-    pool = await init_db_pool()
     async with pool.connection() as conn:
         cur = await conn.execute(
             """
