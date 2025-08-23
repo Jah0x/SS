@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: subs-migrate
+  namespace: securelink
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: migrate
+        image: bitnami/postgresql:15
+        env:
+        - name: DB_DSN
+          valueFrom:
+            secretKeyRef:
+              name: subs-secrets
+              key: DB_DSN
+        volumeMounts:
+        - name: mig
+          mountPath: /mig
+        command: ["/bin/bash","-lc"]
+        args:
+        - |
+          set -e
+          for f in /mig/*.sql; do
+            echo ">> apply $f"; psql -v ON_ERROR_STOP=1 "$DB_DSN" -f "$f";
+          done
+      volumes:
+      - name: mig
+        configMap:
+          name: subs-migrations

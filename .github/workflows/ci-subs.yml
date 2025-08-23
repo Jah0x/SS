@@ -11,6 +11,20 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      pg:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      DB_DSN: postgresql://postgres:postgres@localhost:5432/postgres
+      SUBS_INTERNAL_TOKEN: dummy
+      PYTHONWARNINGS: "error::DeprecationWarning"
     steps:
       - uses: actions/checkout@v4
 
@@ -34,18 +48,18 @@ jobs:
           python -m pip install -U pip
           pip install -r requirements.txt
 
-      - name: Smoke import (no server start)
+      - name: Smoke (import + open pool + simple query)
         working-directory: subs-mvp
-        env:
-          DB_DSN: postgresql://u:p@localhost:5432/db
-          SUBS_INTERNAL_TOKEN: dummy
         run: |
           python - <<'PY'
-          import os
-          os.environ.setdefault("DB_DSN","postgresql://u:p@localhost:5432/db")
-          os.environ.setdefault("SUBS_INTERNAL_TOKEN","dummy")
-          from app.main import app
-          print("APP:", app.title, app.version)
+          import asyncio
+          from app.db import pool
+          async def main():
+              await pool.open()
+              async with pool.connection() as conn:
+                  await conn.execute("SELECT 1;")
+              await pool.close()
+          asyncio.run(main())
           PY
 
       - name: Byte-compile check

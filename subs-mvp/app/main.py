@@ -3,7 +3,7 @@ from fastapi import FastAPI, Depends, Header, HTTPException, status
 from uuid import UUID
 
 from .config import settings
-from .db import init_db_pool, close_db_pool, assign_uid_by_login, revoke_by_login, uid_status
+from .db import pool, assign_uid_by_login, revoke_by_login, uid_status
 from .models import AssignRequest, RevokeRequest, UIDStatus, AssignResponse
 from .watcher import CMWatcher
 
@@ -15,7 +15,7 @@ async def require_internal(x_internal_token: str | None = Header(default=None)):
 
 @app.on_event("startup")
 async def on_startup():
-    await init_db_pool()
+    await pool.open()
     loop = asyncio.get_running_loop()
     app.state.cm_watcher = CMWatcher(loop)
     app.state._watcher_thread = app.state.cm_watcher.start_in_thread()
@@ -24,7 +24,7 @@ async def on_startup():
 async def on_shutdown():
     if getattr(app.state, "cm_watcher", None):
         app.state.cm_watcher.stop()
-    await close_db_pool()
+    await pool.close()
 
 @app.get("/healthz")
 async def healthz():

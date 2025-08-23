@@ -20,6 +20,16 @@ kubectl -n securelink apply -f k8s/deployment.yaml
 # (опц.) kubectl -n securelink apply -f k8s/networkpolicy.yaml
 ```
 
+## Миграции БД
+```bash
+# применить миграции (из корня репозитория) и дождаться завершения Job
+kubectl apply -k ../k8s
+kubectl -n securelink wait --for=condition=complete job/subs-migrate --timeout=120s
+
+# после успешных миграций деплой сервиса
+kubectl -n securelink apply -f k8s/deployment.yaml
+```
+
 ## Эндпоинты
 ```bash
 # assign
