@@ -30,14 +30,41 @@ kubectl -n securelink wait --for=condition=complete job/subs-migrate --timeout=1
 kubectl -n securelink apply -f k8s/deployment.yaml
 ```
 
+## Переменные окружения
+
+Сервис использует следующие переменные окружения:
+
+- `DB_DSN` — строка подключения к Postgres.
+- `SUBS_INTERNAL_TOKEN` — токен для внутренней аутентификации.
+- `SUBS_DOMAIN` — домен, указывающий на Xray (обязателен).
+- `XRAY_PORT` — порт Xray (по умолчанию `443`).
+- `XRAY_FLOW` — поток (по умолчанию `xtls-rprx-vision`).
+
 ## Эндпоинты
+Все вызовы (кроме `/healthz`) требуют заголовка `Authorization: Bearer $SUBS_INTERNAL_TOKEN`.
+
 ```bash
 # assign
-curl -s -X POST http://subs.securelink.svc.cluster.local:8080/v1/assign   -H "X-Internal-Token: $SUBS_INTERNAL_TOKEN"   -H 'Content-Type: application/json'   -d '{"login":"user_login_or_email"}'
+curl -s -X POST http://subs.securelink.svc.cluster.local:8080/v1/assign \
+  -H "Authorization: Bearer $SUBS_INTERNAL_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"login":"user_login_or_email"}'
 
 # revoke
-curl -s -X POST http://subs.securelink.svc.cluster.local:8080/v1/revoke   -H "X-Internal-Token: $SUBS_INTERNAL_TOKEN"   -H 'Content-Type: application/json'   -d '{"login":"user_login_or_email"}'
+curl -s -X POST http://subs.securelink.svc.cluster.local:8080/v1/revoke \
+  -H "Authorization: Bearer $SUBS_INTERNAL_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"login":"user_login_or_email"}'
 
-# uid status
-curl -s -H "X-Internal-Token: $SUBS_INTERNAL_TOKEN"   http://subs.securelink.svc.cluster.local:8080/v1/uid/<uuid>
+# status by login
+curl -s -H "Authorization: Bearer $SUBS_INTERNAL_TOKEN" \
+  'http://subs.securelink.svc.cluster.local:8080/v1/status?login=user@example.com'
+
+# status by uid
+curl -s -H "Authorization: Bearer $SUBS_INTERNAL_TOKEN" \
+  'http://subs.securelink.svc.cluster.local:8080/v1/status?uid=<uuid>'
+
+# VLESS ссылка
+curl -s -H "Authorization: Bearer $SUBS_INTERNAL_TOKEN" \
+  'http://subs.securelink.svc.cluster.local:8080/v1/sub?login=user@example.com&fmt=plain'
 ```
