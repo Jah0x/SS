@@ -15,4 +15,8 @@ class Settings(BaseSettings):
     INTERNAL_TOKEN: str = Field(..., alias="SUBS_INTERNAL_TOKEN")
     RESCAN_INTERVAL_SEC: int = Field(600)
 
+    SUBS_DOMAIN: str = Field(...)
+    XRAY_PORT: int = Field(443)
+    XRAY_FLOW: str = Field("xtls-rprx-vision")
+
 settings = Settings()

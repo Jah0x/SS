@@ -1,17 +1,12 @@
 import asyncio
-from fastapi import FastAPI, Depends, Header, HTTPException, status
-from uuid import UUID
+from fastapi import FastAPI
 
-from .config import settings
-from .db import pool, assign_uid_by_login, revoke_by_login, uid_status
-from .models import AssignRequest, RevokeRequest, UIDStatus, AssignResponse
+from .db import pool
 from .watcher import CMWatcher
+from .routers import v1
 
 app = FastAPI(title="Subs", version="0.1.0")
-
-async def require_internal(x_internal_token: str | None = Header(default=None)):
-    if not x_internal_token or x_internal_token != settings.INTERNAL_TOKEN:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="unauthorized")
+app.include_router(v1.router)
 
 @app.on_event("startup")
 async def on_startup():
@@ -29,23 +24,3 @@ async def on_shutdown():
 @app.get("/healthz")
 async def healthz():
     return {"ok": True}
-
-@app.post("/v1/assign", response_model=AssignResponse, dependencies=[Depends(require_internal)])
-async def assign(req: AssignRequest):
-    uid = await assign_uid_by_login(req.login)
-    return AssignResponse(uid=UUID(uid))
-
-@app.post("/v1/revoke", dependencies=[Depends(require_internal)])
-async def revoke(req: RevokeRequest):
-    if not req.login and not req.uid:
-        raise HTTPException(400, detail="login or uid is required")
-    if req.login:
-        await revoke_by_login(req.login)
-    else:
-        raise HTTPException(400, detail="revoke by uid not implemented; use login")
-    return {"ok": True}
-
-@app.get("/v1/uid/{uid}", response_model=UIDStatus, dependencies=[Depends(require_internal)])
-async def get_uid(uid: UUID):
-    status_, pool_ = await uid_status(uid)
-    return UIDStatus(uid=uid, status=status_, pool=pool_)

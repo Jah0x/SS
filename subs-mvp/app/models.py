@@ -1,17 +1,40 @@
-from pydantic import BaseModel, Field
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Union
 from uuid import UUID
 
-class AssignRequest(BaseModel):
-    login: str = Field(..., min_length=1)
+from pydantic import BaseModel, Field
 
-class RevokeRequest(BaseModel):
-    login: str | None = None
+
+class AssignReq(BaseModel):
+    login: str = Field(..., min_length=1)
     uid: UUID | None = None
 
-class UIDStatus(BaseModel):
-    uid: UUID
-    status: str
-    pool: str
 
-class AssignResponse(BaseModel):
+class AssignResp(BaseModel):
     uid: UUID
+
+
+class RevokeReq(BaseModel):
+    login: str = Field(..., min_length=1)
+
+
+class StatusByLogin(BaseModel):
+    login: str
+    user_id: int
+    uid: UUID | None = None
+    assigned_at: datetime | None = None
+    active: bool
+
+
+class StatusByUid(BaseModel):
+    uid: UUID
+    pool: str
+    status: str
+    updated_at: datetime
+    user_id: int | None = None
+    assigned_at: datetime | None = None
+
+
+StatusResp = Union[StatusByLogin, StatusByUid]
